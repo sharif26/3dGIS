@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="IE=edge" >
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>City of Chesterfield Tree Map based on trunk sizes (3D)</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.0/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.0/"></script>
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+
+  <script>
+  var view;
+    require([
+        "esri/Map",
+        "esri/views/SceneView",
+        "esri/layers/FeatureLayer",
+        "esri/renderers/SimpleRenderer",
+        "esri/symbols/PointSymbol3D",
+        "esri/symbols/ObjectSymbol3DLayer",
+		
+        "dojo/domReady!"
+      ],
+      function(
+        Map, SceneView, FeatureLayer, SimpleRenderer, PointSymbol3D,
+        ObjectSymbol3DLayer
+      ) {
+
+        /*****************************************************************
+         * Set the Renderer and Layer for the tree trunks. Since visual variables only
+         * apply to one symbol layer in version 4.0 of the ArcGIS JS API,
+         * we need to separate the trunks from the crowns in different layers.
+         *
+         * This is subject to change in future releases of the API.
+         *
+         * The axis property of each size visual variable applies the value of
+         * the field in the units of the valueUnit to the feature only for the
+         * specified axis.
+         *****************************************************************/
+
+        var trunkRenderer = new SimpleRenderer({
+          symbol: new PointSymbol3D({
+            symbolLayers: [new ObjectSymbol3DLayer({
+              material: {
+                color: "brown"
+              },
+              resource: {
+                primitive: "cylinder"
+              }
+            })]
+          }),
+          visualVariables: [
+          {
+            type: "size",
+            axis: "height",
+            field: function(){
+			 return 17;
+			},
+            valueUnit: "feet"
+          }, {
+            type: "size",
+            axis: "width-and-depth",
+            field: "TRUNKDIAM",
+            valueUnit: "inches"
+          }
+		  ]
+        });
+
+        var trunkLyr = new FeatureLayer({
+          url: "https://gis.chesterfield.mo.us/secure/rest/services/TreeInventoryViewer/MapServer/0",
+          renderer: trunkRenderer,
+          outFields: ["*"],
+          elevationInfo: {
+            mode: "onTheGround"
+          },
+          definitionExpression: "TRUNKDIAM >= 1 AND TRUNKDIAM <= 60"
+        });
+
+        /*****************************************************************
+         * Set the Renderer and Layer for the tree crowns. Four visual variables
+         * are used in this symbol. One for the crown height (height axis),
+         * another for crown diameter from north to south (depth axis), and
+         * another for crown diameter from east to west (width axis).
+         *
+         * The color visual variable shades the tree crowns based on their
+         * carbon storage.
+         *****************************************************************/
+
+        var crownRenderer = new SimpleRenderer({
+          symbol: new PointSymbol3D({
+            symbolLayers: [new ObjectSymbol3DLayer({
+              material: {
+                color: "green"
+              },
+              resource: {
+                primitive: "sphere"
+              }
+            })]
+          }),
+          visualVariables: [
+          {
+            type: "size",
+            axis: "height",
+            field: "TRUNKDIAM",
+            valueUnit: "feet"
+          }, 
+          /*
+          {
+            type: "size",
+            axis: "width",
+            field: "Width_EW",
+            valueUnit: "feet"
+          }, {
+            type: "size",
+            axis: "depth",
+            field: "Width_NS",
+            valueUnit: "feet"
+          }, 
+          */
+          {
+            type: "color",
+            field: function calculateColor( feature ){
+				var cond = (feature.hasOwnProperty("attributes")) ? feature.attributes.CONDITION: feature;
+				//console.log(cond);
+				switch(cond){
+					case "Fair":
+						return 0;
+					case "Good":
+						return 1;
+					case "Poor":
+						return 2;
+					case "Average":
+						return 3;
+					case "Very Good":
+						return 4;
+					case "Critical":
+						return 5;
+					case "Dead":
+						return 6;
+					case "Very Poor":
+						return 7;
+					case "Excellent":
+						return 8;
+					default:
+						return 9;
+				}
+			
+			}, //"CONDITION", // Carbon storage
+//            colors: ["#00FF00", "#00cc00", "#ffff00"]
+			stops: [
+              {
+                value: 0,		//"Fair "
+                color: "#ffff00"//"#f7fcb9"		yellow
+              }, {
+                value: 1,		//"Good "
+                color: "#00ff00"//"#31a354"		green
+              }, {
+                value: 2,		//"Poor "
+                color: "#ff0000"//"#31a354"		red
+              }, {
+                value: 3,		//"Average "
+                color: "#ffff00"//"#f7fcb9"		yellow
+              }, {
+                value: 4,		//"Very Good "
+                color: "#00ff00"//"#31a354"
+              }, {
+                value: 5,		//"Critical "
+                color: "#ff0000"//"#31a354"		red
+              }, {
+                value: 6,		//"Dead "
+                color: "#ff0000"//"#31a354"		red
+              }, {
+                value: 7,		//"Very Poor "
+                color: "#ff0000"//"#f7fcb9"		red
+              }, {
+                value: 8,		//"Excellent "
+                color: "#00ff00"//"#31a354"
+              }, {
+                value: 9,		//"N/A "
+                color: "#0000ff"//"#31a354"		blue
+              }
+            ]
+          }]
+        });
+
+        var crownLyr = new FeatureLayer({
+          url: "https://gis.chesterfield.mo.us/secure/rest/services/TreeInventoryViewer/MapServer/0",
+          renderer: crownRenderer,
+          outFields: ["*"],
+          elevationInfo: {
+            mode: "relativeToGround",
+            offset: 5.0
+          },
+          definitionExpression: "TRUNKDIAM >= 1 AND TRUNKDIAM <= 60",
+          popupTemplate: { // autocasts as new PopupTemplate()
+            title: "{Name}",
+            content: "<i>{GENUS} {SPECIES}</i><br>" +
+              "This tree is in {Condition} condition and is it's trunk dimater is {TRUNKDIAM} inch. <br>" + 
+			  "Address: {ADDRESS} <br>" + 
+			  "SubDivision: {Subdivision}"
+          }
+        });
+		
+
+
+		//var dynamicMSLayer = new FeatureLayer("http://mapping.chesterfield.mo.us/arcgis/rest/services/GeneralPurpose1/MapServer");
+        var map = new Map({
+          basemap: "streets",
+          ground: "world-elevation",
+          layers: [trunkLyr, crownLyr]
+        });
+
+        view = new SceneView({
+          container: "viewDiv",
+          map: map//,
+          //camera: {
+          /*  position: {
+              x: -9177356,
+              y: 4246783,
+              z: 723,
+              spatialReference: {
+                wkid: 3857
+              }
+            },*/
+//            center: [-90.582342, 38.658451],
+//           zoom: 18,
+//            heading: 180,
+//            tilt: 100
+          //}
+        });
+		
+		view.then(function(){
+			view.goTo({
+				center: [-90.521703, 38.635190],
+				zoom: 17,
+				heading: 70,
+				tilt: 55
+			})
+			/*.then( function(){
+				return 	view.goTo({
+				center: [-90.536474, 38.635030],
+				zoom: 17,
+				heading: 70,
+				tilt: 55
+			})
+			})*/
+		});
+		
+		view.on("layerview-create", function(evt){
+		  // The LayerView for the layer that emitted this event
+		  //evt.layerView;
+		  console.log('scene layer loaded');
+		});		
+		
+      });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
