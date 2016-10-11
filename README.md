@@ -1,2 +1,2 @@
 # 3dGIS
-please check wiki for more info
+please check [wiki](https://github.com/sharif26/3dGIS/wiki/) for more info
