@@ -78,7 +78,7 @@
         });
 
         var trunkLyr = new FeatureLayer({
-          url: "https://gis.chesterfield.mo.us/secure/rest/services/TreeInventoryViewer/MapServer/0",
+          url: "/secure/rest/services/TreeInventoryViewer/MapServer/0",
           renderer: trunkRenderer,
           outFields: ["*"],
           elevationInfo: {
@@ -195,7 +195,7 @@
         });
 
         var crownLyr = new FeatureLayer({
-          url: "https://gis.chesterfield.mo.us/secure/rest/services/TreeInventoryViewer/MapServer/0",
+          url: "/secure/rest/services/TreeInventoryViewer/MapServer/0",
           renderer: crownRenderer,
           outFields: ["*"],
           elevationInfo: {
@@ -214,7 +214,7 @@
 		
 
 
-		//var dynamicMSLayer = new FeatureLayer("http://mapping.chesterfield.mo.us/arcgis/rest/services/GeneralPurpose1/MapServer");
+	
         var map = new Map({
           basemap: "streets",
           ground: "world-elevation",
